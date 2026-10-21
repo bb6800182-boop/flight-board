@@ -640,7 +640,7 @@ async function load() {
     if (!state.groups.length || state.demo) { ingest(demoText(Date.now()), Date.now()); state.demo = true; state.error += '，先顯示示範資料'; }
   }
   renderFooter();
-  loadTimer = setTimeout(load, S.source === 'demo' ? 60e3 : 120e3);
+  loadTimer = setTimeout(load, S.source === 'demo' ? 60e3 : state.error ? 120e3 : 300e3); // 官方約 5 分鐘更新一次；抓失敗就 2 分鐘後重試
 }
 function renderFooter() {
   $('#src').textContent = (state.demo ? '示範資料・非即時｜' : '') + '資料來源：桃園國際機場公司開放資料・非官方顯示';

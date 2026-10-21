@@ -20,7 +20,7 @@
 
 桃園機場的開放資料是 Big5 編碼，沒有開放跨網域讀取，而且一次約 550 KB，所以手機不能直接抓。
 
-`worker.js` 是一支 Cloudflare Worker，負責代抓官方檔案、刪掉 3 小時前的班次，結果快取 60 秒，壓縮後每次約 30 KB。看板本身是 `public/index.html`，每 2 分鐘向自己的 Worker 要一次資料，在手機上解碼與解析。
+`worker.js` 是一支 Cloudflare Worker，負責代抓官方檔案、刪掉 3 小時前的班次，結果快取 60 秒，壓縮後每次約 30 KB。看板本身是 `public/index.html`，每 5 分鐘向自己的 Worker 要一次資料，在手機上解碼與解析。
 
 ## 部署自己的一份
 

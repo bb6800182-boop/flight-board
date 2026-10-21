@@ -9,6 +9,10 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="航班看板">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700;800&family=JetBrains+Mono:wght@700;800&family=Noto+Sans+TC:wght@500;700;900&display=swap">
@@ -77,6 +81,12 @@ button{font:inherit;color:inherit}
 .gear svg{width:1.6rem;height:1.6rem;fill:currentColor}
 body.ui .gear{opacity:1;pointer-events:auto}
 body.ui .meta{visibility:hidden}
+#app{cursor:pointer} /* iOS 點空白處不會觸發 click，加 pointer 才會 */
+/* 全螢幕鈕：還沒全螢幕時常駐右下角，樣式同 DESIGN.md 的 button-primary */
+.fs{position:fixed;right:var(--px);bottom:calc(3.6rem + var(--sp-sm));z-index:4;display:flex;align-items:center;gap:var(--sp-sm);
+  min-height:max(2.8rem,44px);padding:0 var(--sp-md);border:0;border-radius:var(--r-pill);background:var(--accent);color:var(--on-accent);
+  font:700 max(1rem,15px)/1 var(--cjk);cursor:pointer}
+.fs svg{width:1.2em;height:1.2em;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
 :focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 
 /* 換頁進度條 */
@@ -233,6 +243,7 @@ input[type=radio],input[type=checkbox]{width:20px;height:20px;accent-color:var(-
 </div>
 <div class="dim" id="dim" hidden></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<button class="fs" id="fs" type="button" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>全螢幕</button>
 
 <dialog id="dlg" aria-labelledby="dlgTitle">
   <form id="form" novalidate>
@@ -680,14 +691,33 @@ setInterval(() => { const r = () => Math.round(Math.random() * 4 - 2); app.style
 /* ========== 全螢幕、鎖橫向、防休眠 ========== */
 let wake = null;
 const installed = matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches;
+const root = document.documentElement;
+const fsRequest = root.requestFullscreen || root.webkitRequestFullscreen; // iPhone 沒有，只能加到主畫面
+const isFull = () => !!(document.fullscreenElement || document.webkitFullscreenElement) || matchMedia('(display-mode: fullscreen)').matches;
+const canFull = () => !!fsRequest && !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
 async function keepAwake() {
   try { if ('wakeLock' in navigator && !wake && document.visibilityState === 'visible') { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null; }); } } catch { /* 不支援或被拒 */ }
 }
+// 要在點擊當下同步呼叫，瀏覽器才會允許全螢幕；從主畫面以 standalone 開啟時也試一次
 async function enterKiosk() {
-  try { if (!installed && !document.fullscreenElement && document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen({ navigationUI: 'hide' }); } catch { }
-  try { if (S.lockLandscape && (installed || document.fullscreenElement) && screen.orientation && screen.orientation.lock) await screen.orientation.lock('landscape'); } catch { }
+  try { if (!isFull() && canFull()) await fsRequest.call(root, { navigationUI: 'hide' }); } catch { /* 被拒就算了 */ }
+  try { if (S.lockLandscape && (installed || isFull()) && screen.orientation && screen.orientation.lock) await screen.orientation.lock('landscape'); } catch { }
   keepAwake();
 }
+// 全螢幕鈕：還沒全螢幕就顯示；iPhone 從主畫面開啟已是最大畫面，不顯示
+function updateFsButton() { $('#fs').hidden = isFull() || (installed && !canFull()); }
+async function fullscreenButton() {
+  if (/\bLine\//.test(navigator.userAgent)) { // LINE 內建瀏覽器不能全螢幕，改用手機的瀏覽器開
+    const u = new URL(location.href); u.searchParams.set('openExternalBrowser', '1'); location.href = u.href; return;
+  }
+  await enterKiosk();
+  await new Promise(r => setTimeout(r, 300));
+  if (isFull()) return;
+  toast(/iPhone|iPod/.test(navigator.userAgent)
+    ? 'iPhone 不能直接全螢幕：用 Safari 按「分享」→「加入主畫面」，之後從主畫面開啟'
+    : '這個瀏覽器不能全螢幕：請改用 Chrome 開啟，或從選單「加到主畫面」後由主畫面開啟', 9000);
+}
+for (const ev of ['fullscreenchange', 'webkitfullscreenchange']) document.addEventListener(ev, updateFsButton);
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'visible') return;
   keepAwake();
@@ -700,6 +730,7 @@ function showUI() { document.body.classList.add('ui'); clearTimeout(uiTimer); ui
 function toast(msg, ms = 3500) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(t._tm); t._tm = setTimeout(() => t.classList.remove('on'), ms); }
 document.addEventListener('click', e => {
   if (e.target.closest('dialog')) return;
+  if (e.target.closest('#fs')) { fullscreenButton(); return; }
   enterKiosk();
   const tab = e.target.closest('.tab');
   if (tab) { state.kind = tab.dataset.k; state.page = 0; paginate(); show(); schedule(); showUI(); return; }
@@ -750,10 +781,10 @@ form.addEventListener('submit', e => {
 
 /* ========== 啟動 ========== */
 document.documentElement.dataset.theme = S.theme;
-addEventListener('resize', layout);
-layout(); applyDim(); tickClock(); load(); schedule(); keepAwake();
+addEventListener('resize', () => { layout(); updateFsButton(); });
+layout(); applyDim(); tickClock(); load(); schedule(); keepAwake(); updateFsButton();
 if (installed) enterKiosk();
-toast(installed ? '點一下畫面，右上角會出現設定鈕' : '點一下畫面即可全螢幕；右上角會出現設定鈕');
+toast($('#fs').hidden ? '點一下畫面，右上角會出現設定鈕' : '按右下角「全螢幕」；點一下畫面會出現設定鈕');
 </script>
 </body>
 </html>

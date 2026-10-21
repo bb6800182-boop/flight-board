@@ -1,0 +1,8 @@
+name = "flight-board"
+main = "worker.js"
+compatibility_date = "2025-09-01"
+
+# 看板本身（public/index.html 等）當靜態檔；/api/flights 才進 worker.js
+[assets]
+directory = "./public"
+binding = "ASSETS"

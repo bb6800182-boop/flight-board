@@ -1,4 +1,6 @@
-# 桃園機場航班看板
+# 桃園機場航班看板 Flight Board
+
+[English](#english)
 
 把閒置的手機橫放在桌上，變成桃園機場的即時航班看板。兩種風格可以切換：**藍板**（機場 LCD 看板）和**翻牌**（機械翻牌，換頁時每個字都會翻動）。
 
@@ -54,3 +56,16 @@
 - 字型：Barlow Semi Condensed、Noto Sans TC、JetBrains Mono（Google Fonts，SIL Open Font License）。
 - 程式碼：[MIT License](LICENSE)。
 - 設計 token 與設計理由：[DESIGN.md](DESIGN.md)。
+
+## English
+
+**Flight Board** turns a spare phone, laid sideways on your desk, into a live departure and arrival board for Taiwan Taoyuan International Airport (TPE). Two styles: a blue LCD board and a mechanical split-flap board where every character flips when the page changes.
+
+- Departures and arrivals rotate automatically; codeshare flight numbers take turns.
+- My flights: enter one or more flight numbers and the bottom of the screen shows the terminal, gate, check-in counter and a countdown.
+- Full screen with wake lock and landscape lock, OLED burn-in protection, automatic dimming at night.
+- Times are always shown in Taipei time.
+
+The board itself is in Traditional Chinese, because it only covers Taoyuan Airport. `worker.js` is a Cloudflare Worker that fetches the airport's open data (Big5 encoded, about 550 KB), drops flights older than 3 hours and caches the result for 60 seconds; `public/index.html` is the board. To run your own copy, follow the deployment section above with a free Cloudflare account.
+
+This is an unofficial personal project. Always check the airport's own announcements for flight information.
